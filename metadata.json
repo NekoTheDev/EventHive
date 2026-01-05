@@ -1,0 +1,5 @@
+{
+  "name": "EventHive",
+  "description": "A modern event registration and check-in management system featuring simulated backend behavior, QR code generation, and analytics.",
+  "requestFramePermissions": []
+}
