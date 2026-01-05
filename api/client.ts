@@ -1,14 +1,10 @@
 import axios from 'axios';
 
-// Explicitly use the window origin to ensure absolute URLs.
-// This helps MSW intercept requests reliably and prevents URL parsing errors
-// that can occur with relative paths in some environments.
-const baseURL = typeof window !== 'undefined' && window.location.origin 
-  ? `${window.location.origin}/api` 
-  : '/api';
-
+// Use a relative path for the baseURL.
+// This allows the browser to resolve the origin automatically and ensures
+// that MSW can intercept requests reliably without origin mismatch issues.
 export const apiClient = axios.create({
-  baseURL,
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
