@@ -3,7 +3,7 @@ import { StatsCard } from '../../components/StatsCard';
 import { ExportButton } from '../../components/ExportButton';
 import { fetchStats, fetchRegistrations, checkInUser } from '../../api/registrations';
 import { Stats, Registration } from '../../types';
-import { Calendar, Users, CheckSquare, Activity, Search } from 'lucide-react';
+import { Calendar, Users, Activity, QrCode, RefreshCw } from 'lucide-react';
 import { Pagination } from '../../components/Pagination';
 import { exportRegistrationsToCSV } from '../../utils/csv';
 import { useAppStore } from '../../store/events.store';
@@ -15,16 +15,25 @@ export const Dashboard: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [qrInput, setQrInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const { addToast } = useAppStore();
 
   const loadData = async () => {
-    const [statsRes, regsRes] = await Promise.all([
-      fetchStats(),
-      fetchRegistrations({ page, limit: 10 })
-    ]);
-    setStats(statsRes);
-    setRegistrations(regsRes.data);
-    setTotalPages(regsRes.totalPages);
+    setRefreshing(true);
+    try {
+        const [statsRes, regsRes] = await Promise.all([
+        fetchStats(),
+        fetchRegistrations({ page, limit: 10 })
+        ]);
+        setStats(statsRes);
+        setRegistrations(regsRes.data);
+        setTotalPages(regsRes.totalPages);
+    } catch(e) {
+        console.error(e);
+        addToast('Failed to load dashboard data', 'error');
+    } finally {
+        setRefreshing(false);
+    }
   };
 
   useEffect(() => {
@@ -41,9 +50,9 @@ export const Dashboard: React.FC = () => {
       loadData(); // Refresh stats
     } catch (err: any) {
       if(err.response?.status === 409) {
-        addToast('Already checked in', 'info');
+        addToast('User already checked in', 'info');
       } else {
-        addToast('Invalid QR Code', 'error');
+        addToast('Invalid QR Code or Registration not found', 'error');
       }
     }
   };
@@ -54,7 +63,7 @@ export const Dashboard: React.FC = () => {
       // Fetch all for export
       const allRegs = await fetchRegistrations({ limit: 1000 });
       exportRegistrationsToCSV(allRegs.data, `registrations_export_${Date.now()}.csv`);
-      addToast('Export started', 'success');
+      addToast('Export started successfully', 'success');
     } catch (e) {
       addToast('Export failed', 'error');
     } finally {
@@ -64,31 +73,46 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Dashboard</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <button 
+            onClick={loadData} 
+            disabled={refreshing}
+            className={`p-2 rounded-lg border border-gray-200 hover:bg-white bg-gray-50 text-gray-600 transition-all ${refreshing ? 'opacity-70' : ''}`}
+            title="Refresh Data"
+        >
+            <RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} />
+        </button>
+      </div>
 
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
           <StatsCard title="Total Events" value={stats.totalEvents} icon={Calendar} color="text-blue-600" />
           <StatsCard title="Total Registrations" value={stats.totalRegistrations} icon={Users} color="text-purple-600" />
           <StatsCard title="Check-in Rate" value={`${stats.checkInRate}%`} icon={Activity} color="text-green-600" />
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
-            <h3 className="text-sm font-medium text-gray-500">Quick Check-in</h3>
-            <form onSubmit={handleCheckIn} className="mt-2 flex gap-2">
+          
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-xl shadow-lg border border-gray-700 text-white flex flex-col justify-between">
+            <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                <QrCode size={16} /> Quick Check-in
+            </h3>
+            <form onSubmit={handleCheckIn} className="mt-4 flex gap-2">
               <input 
                 type="text" 
-                placeholder="Scan QR..." 
+                placeholder="Scan / Enter QR..." 
                 value={qrInput}
                 onChange={e => setQrInput(e.target.value)}
-                className="flex-1 px-3 py-1 border rounded text-sm outline-none focus:ring-1 focus:ring-primary" 
+                className="flex-1 px-3 py-2 border border-gray-600 rounded bg-gray-700 text-white text-sm outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400" 
               />
-              <button type="submit" className="bg-primary text-white px-3 py-1 rounded text-sm hover:bg-blue-600">Go</button>
+              <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-600 transition-colors">
+                Go
+              </button>
             </form>
           </div>
         </div>
       )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+        <div className="p-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50">
           <h2 className="text-lg font-bold text-gray-800">Recent Registrations</h2>
           <ExportButton onExport={handleExport} isLoading={loading} />
         </div>
@@ -111,7 +135,7 @@ export const Dashboard: React.FC = () => {
                   <td className="px-6 py-4 text-gray-600">{reg.className}</td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      reg.status === 'checked-in' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                      reg.status === 'checked-in' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-blue-50 text-blue-700 border border-blue-100'
                     }`}>
                       {reg.status === 'checked-in' ? 'Checked In' : 'Registered'}
                     </span>

@@ -9,13 +9,10 @@ const NETWORK_DELAY = 600;
 const getSearchParams = (requestUrl: string) => {
   try {
     if (!requestUrl) return new URLSearchParams();
-    // Provide a base URL to ensure parsing succeeds for both relative and absolute URLs
-    // This is critical for preventing "Invalid URL" errors when requestUrl is just a path
     const url = new URL(requestUrl, 'http://localhost');
     return url.searchParams;
   } catch (error) {
     console.warn('Failed to parse URL:', requestUrl, error);
-    // Return empty params on failure to prevent crash
     return new URLSearchParams();
   }
 };
@@ -30,6 +27,7 @@ export const handlers = [
     const limit = parseInt(params.get('limit') || '10');
     const q = params.get('q')?.toLowerCase() || '';
     const filter = params.get('filter') || 'all';
+    const sort = params.get('sort') || 'date-asc';
 
     let filteredEvents = mockEvents.filter(evt => {
       const matchesSearch = evt.title.toLowerCase().includes(q) || evt.description.toLowerCase().includes(q);
@@ -37,8 +35,20 @@ export const handlers = [
       return matchesSearch && matchesFilter;
     });
 
-    // Sort by date (upcoming first)
-    filteredEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Sorting Logic
+    filteredEvents.sort((a, b) => {
+      switch (sort) {
+        case 'date-desc':
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        case 'capacity-desc':
+          return b.capacity - a.capacity;
+        case 'available-desc':
+          return (b.capacity - b.registered) - (a.capacity - a.registered);
+        case 'date-asc':
+        default:
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+      }
+    });
 
     const total = filteredEvents.length;
     const totalPages = Math.ceil(total / limit);

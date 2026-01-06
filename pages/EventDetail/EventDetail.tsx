@@ -4,10 +4,12 @@ import { fetchEventById } from '../../api/events';
 import { Event } from '../../types';
 import { Calendar, MapPin, Users, ArrowLeft, Share2 } from 'lucide-react';
 import { formatDate } from '../../utils/format';
+import { useAppStore } from '../../store/events.store';
 
 export const EventDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { addToast } = useAppStore();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -20,6 +22,15 @@ export const EventDetail: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const handleShare = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+        addToast('Event link copied to clipboard!', 'success');
+    }).catch(() => {
+        addToast('Failed to copy link', 'error');
+    });
+  };
+
   if (loading) return <div className="h-screen flex items-center justify-center text-gray-400">Loading details...</div>;
   if (error || !event) return <div className="text-center py-20 text-red-500">Event not found.</div>;
 
@@ -29,9 +40,17 @@ export const EventDetail: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <button onClick={() => navigate(-1)} className="flex items-center text-gray-500 hover:text-gray-900 mb-6 transition-colors">
-        <ArrowLeft size={20} className="mr-2" /> Back to Events
-      </button>
+      <div className="flex justify-between items-center mb-6">
+        <button onClick={() => navigate(-1)} className="flex items-center text-gray-500 hover:text-gray-900 transition-colors">
+            <ArrowLeft size={20} className="mr-2" /> Back to Events
+        </button>
+        <button 
+            onClick={handleShare}
+            className="flex items-center gap-2 text-primary hover:text-blue-700 font-medium px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors"
+        >
+            <Share2 size={18} /> Share
+        </button>
+      </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="h-64 md:h-80 w-full relative">

@@ -1,7 +1,7 @@
 import { apiClient } from './client';
 import { Event, PaginatedResponse } from '../types';
 
-export const fetchEvents = async (params: { page?: number; limit?: number; q?: string; filter?: string }) => {
+export const fetchEvents = async (params: { page?: number; limit?: number; q?: string; filter?: string; sort?: string }) => {
   const { data } = await apiClient.get<PaginatedResponse<Event>>('/events', { params });
   return data;
 };
